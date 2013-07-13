@@ -11,9 +11,12 @@ def proc_get(ldb):
     sys.stdout.write('Input a key> ')
     l = raw_input()
     key = l.strip('\n')
-    out = ldb.Get(key)
-    print 'Key : %s' % key
-    print 'Output : %s' % out
+    try:
+        out = ldb.Get(key)
+        print 'Key : %s' % key
+        print 'Output : %s' % out
+    except Exception, msg:
+        logging.error(msg)
 
 def proc_put(ldb):
     sys.stdout.write('Input key[tab]value> ')
@@ -32,14 +35,27 @@ if __name__=='__main__':
     ldb = leveldb.LevelDB(opt.path)
     if opt.import_file:
         logging.info('IMPORT MODE.')
+
+        once_limit = 100000
+        no = 0
+        all_count = 0
         batch = leveldb.WriteBatch()
         for l in file(opt.import_file).readlines():
             arr = l.strip('\n').split('\t')
             key, value = arr[0], '\t'.join(arr[1:])
             batch.Put(key, value)
-        logging.info('Begin to write back batch')
-        ldb.Write(batch)
-        logging.info('WRITE OVER!')
+            no += 1
+            all_count += 1
+            if no == once_limit:
+                logging.info('Begin to write back batch, all=%d' % all_count)
+                ldb.Write(batch)
+                logging.info('WRITE OVER!')
+                batch = leveldb.WriteBatch()
+                no = 0
+        if no!=0:
+            logging.info('Begin to write back batch, all=%d' % all_count)
+            ldb.Write(batch)
+            logging.info('WRITE OVER!')
     else:
         while 1:
             sys.stdout.write('GET or PUT> ')
